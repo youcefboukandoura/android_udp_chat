@@ -1,28 +1,28 @@
 package com.youcefboukandoura.androidudppaudiochat
 
-import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.text.format.Formatter
 import android.util.Log
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketException
 import java.net.UnknownHostException
 
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
     private var contactManager: ContactManager? = null
-    private var displayName: String? = null
+    private lateinit var displayName: String
     private var STARTED = false
     private var IN_CALL = false
     private var LISTEN = false
@@ -31,10 +31,7 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         Log.i(LOG_TAG, "UDPChat started")
 
-        // START BUTTON
-        // Pressing this buttons initiates the main functionality
-        val btnStart = findViewById<Button>(R.id.buttonStart)
-        btnStart.setOnClickListener { onStartButtonClick(btnStart) }
+        startBroadCasting()
 
         // UPDATE BUTTON
         // Updates the list of reachable devices
@@ -45,6 +42,9 @@ class MainActivity : Activity() {
         // Attempts to initiate an audio chat session with the selected device
         val buttonCall = findViewById<Button>(R.id.buttonCall)
         buttonCall.setOnClickListener { onClickButtonCall() }
+
+        val buttonCallIpAddress = findViewById<Button>(R.id.buttonCallIpAddress)
+        buttonCallIpAddress.setOnClickListener { onClickButtonCallIpAddress() }
     }
 
     private fun onClickButtonCall() {
@@ -64,34 +64,32 @@ class MainActivity : Activity() {
         val radioButton = findViewById<RadioButton>(selectedButton)
         val contact = radioButton.text.toString()
         val ip = contactManager!!.contacts[contact]
-        IN_CALL = true
+        val ipString = ip.toString().substring(1)
+        callIpAddress(ipString)
+    }
 
-        // Send this information to the MakeCallActivity and start that activity
+    private fun onClickButtonCallIpAddress() {
+        val editTextIpAddress = findViewById<EditText>(R.id.editTextIpAddress)
+        val ipString = editTextIpAddress.text.toString()
+        callIpAddress(ipString)
+    }
+
+    private fun callIpAddress(address: String) {
+        IN_CALL = true
         val intent = Intent(this@MainActivity, MakeCallActivity::class.java)
-        intent.putExtra(EXTRA_CONTACT, contact)
-        var address = ip.toString()
-        address = address.substring(1)
+        intent.putExtra(EXTRA_CONTACT, address)
         intent.putExtra(EXTRA_IP, address)
         intent.putExtra(EXTRA_DISPLAYNAME, displayName)
         startActivity(intent)
     }
 
-    private fun onStartButtonClick(btnStart: Button) {
+    private fun startBroadCasting() {
         Log.i(LOG_TAG, "Start button pressed")
         STARTED = true
-        val displayNameText = findViewById<EditText>(R.id.editTextDisplayName)
-        displayName = displayNameText.text.toString()
-        displayNameText.isEnabled = false
-        btnStart.isEnabled = false
-        val text = findViewById<TextView>(R.id.textViewSelectContact)
-        text.visibility = View.VISIBLE
-        val updateButton = findViewById<Button>(R.id.buttonUpdate)
-        updateButton.visibility = View.VISIBLE
-        val callButton = findViewById<Button>(R.id.buttonCall)
-        callButton.visibility = View.VISIBLE
-        val scrollView = findViewById<ScrollView>(R.id.scrollView)
-        scrollView.visibility = View.VISIBLE
-        contactManager = ContactManager(displayNameText.text.toString(), broadcastIp!!)
+        val textView = findViewById<TextView>(R.id.textViewDisplayName)
+        displayName = getIpAddress()
+        textView.text = getIpAddress()
+        contactManager = ContactManager(getIpAddress(), broadcastIp!!)
         startCallListener()
     }
 
@@ -221,6 +219,11 @@ class MainActivity : Activity() {
         STARTED = true
         contactManager = ContactManager(displayName!!, broadcastIp!!)
         startCallListener()
+    }
+
+    fun Context.getIpAddress(): String {
+        val wm = this.getSystemService(WIFI_SERVICE) as WifiManager
+        return Formatter.formatIpAddress(wm.connectionInfo.ipAddress)
     }
 
     companion object {

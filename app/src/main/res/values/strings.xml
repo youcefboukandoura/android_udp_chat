@@ -17,5 +17,7 @@
     <string name="incomingCall">"Incoming call: "</string>
     <string name="accept">Accept</string>
     <string name="reject">Reject</string>
+    <string name="string_call_ip_address">Call ip address</string>
+    <string name="hint_ip_address">Ip address</string>
 
 </resources>
