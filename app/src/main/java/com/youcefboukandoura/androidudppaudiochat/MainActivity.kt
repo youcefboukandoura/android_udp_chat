@@ -34,26 +34,7 @@ class MainActivity : Activity() {
         // START BUTTON
         // Pressing this buttons initiates the main functionality
         val btnStart = findViewById<Button>(R.id.buttonStart)
-        btnStart.setOnClickListener(object : View.OnClickListener {
-            override fun onClick(v: View) {
-                Log.i(LOG_TAG, "Start button pressed")
-                STARTED = true
-                val displayNameText = findViewById<EditText>(R.id.editTextDisplayName)
-                displayName = displayNameText.text.toString()
-                displayNameText.isEnabled = false
-                btnStart.isEnabled = false
-                val text = findViewById<TextView>(R.id.textViewSelectContact)
-                text.visibility = View.VISIBLE
-                val updateButton = findViewById<Button>(R.id.buttonUpdate)
-                updateButton.visibility = View.VISIBLE
-                val callButton = findViewById<Button>(R.id.buttonCall)
-                callButton.visibility = View.VISIBLE
-                val scrollView = findViewById<ScrollView>(R.id.scrollView)
-                scrollView.visibility = View.VISIBLE
-                contactManager = ContactManager(displayNameText.text.toString(), broadcastIp!!)
-                startCallListener()
-            }
-        })
+        btnStart.setOnClickListener { onStartButtonClick(btnStart) }
 
         // UPDATE BUTTON
         // Updates the list of reachable devices
@@ -62,37 +43,56 @@ class MainActivity : Activity() {
 
         // CALL BUTTON
         // Attempts to initiate an audio chat session with the selected device
-        val btnCall = findViewById<Button>(R.id.buttonCall)
-        btnCall.setOnClickListener(
-            View.OnClickListener {
-                val radioGroup = findViewById<RadioGroup>(R.id.contactList)
-                val selectedButton = radioGroup.checkedRadioButtonId
-                if (selectedButton == -1) {
-                    // If no device was selected, present an error message to the user
-                    Log.w(LOG_TAG, "Warning: no contact selected")
-                    val alert = AlertDialog.Builder(this@MainActivity).create()
-                    alert.setTitle("Oops")
-                    alert.setMessage("You must select a contact first")
-                    alert.setButton(-1, "OK") { dialog, which -> alert.dismiss() }
-                    alert.show()
-                    return@OnClickListener
-                }
-                // Collect details about the selected contact
-                val radioButton = findViewById<RadioButton>(selectedButton)
-                val contact = radioButton.text.toString()
-                val ip = contactManager!!.contacts[contact]
-                IN_CALL = true
+        val buttonCall = findViewById<Button>(R.id.buttonCall)
+        buttonCall.setOnClickListener { onClickButtonCall() }
+    }
 
-                // Send this information to the MakeCallActivity and start that activity
-                val intent = Intent(this@MainActivity, MakeCallActivity::class.java)
-                intent.putExtra(EXTRA_CONTACT, contact)
-                var address = ip.toString()
-                address = address.substring(1)
-                intent.putExtra(EXTRA_IP, address)
-                intent.putExtra(EXTRA_DISPLAYNAME, displayName)
-                startActivity(intent)
-            },
-        )
+    private fun onClickButtonCall() {
+        val radioGroup = findViewById<RadioGroup>(R.id.contactList)
+        val selectedButton = radioGroup.checkedRadioButtonId
+        if (selectedButton == -1) {
+            // If no device was selected, present an error message to the user
+            Log.w(LOG_TAG, "Warning: no contact selected")
+            val alert = AlertDialog.Builder(this@MainActivity).create()
+            alert.setTitle("Oops")
+            alert.setMessage("You must select a contact first")
+            alert.setButton(-1, "OK") { _, _ -> alert.dismiss() }
+            alert.show()
+            return
+        }
+        // Collect details about the selected contact
+        val radioButton = findViewById<RadioButton>(selectedButton)
+        val contact = radioButton.text.toString()
+        val ip = contactManager!!.contacts[contact]
+        IN_CALL = true
+
+        // Send this information to the MakeCallActivity and start that activity
+        val intent = Intent(this@MainActivity, MakeCallActivity::class.java)
+        intent.putExtra(EXTRA_CONTACT, contact)
+        var address = ip.toString()
+        address = address.substring(1)
+        intent.putExtra(EXTRA_IP, address)
+        intent.putExtra(EXTRA_DISPLAYNAME, displayName)
+        startActivity(intent)
+    }
+
+    private fun onStartButtonClick(btnStart: Button) {
+        Log.i(LOG_TAG, "Start button pressed")
+        STARTED = true
+        val displayNameText = findViewById<EditText>(R.id.editTextDisplayName)
+        displayName = displayNameText.text.toString()
+        displayNameText.isEnabled = false
+        btnStart.isEnabled = false
+        val text = findViewById<TextView>(R.id.textViewSelectContact)
+        text.visibility = View.VISIBLE
+        val updateButton = findViewById<Button>(R.id.buttonUpdate)
+        updateButton.visibility = View.VISIBLE
+        val callButton = findViewById<Button>(R.id.buttonCall)
+        callButton.visibility = View.VISIBLE
+        val scrollView = findViewById<ScrollView>(R.id.scrollView)
+        scrollView.visibility = View.VISIBLE
+        contactManager = ContactManager(displayNameText.text.toString(), broadcastIp!!)
+        startCallListener()
     }
 
     private fun updateContactList() {
@@ -111,7 +111,7 @@ class MainActivity : Activity() {
     }
 
     private val broadcastIp: InetAddress?
-        private get() = // Function to return the broadcast address, based on the IP address of the device
+        get() = // Function to return the broadcast address, based on the IP address of the device
             try {
                 val wifiManager =
                     getSystemService(WIFI_SERVICE) as WifiManager
@@ -175,7 +175,7 @@ class MainActivity : Activity() {
                                 packet.address.toString() + " sent invalid message: " + data,
                             )
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                     }
                 }
                 Log.i(LOG_TAG, "Call Listener ending")

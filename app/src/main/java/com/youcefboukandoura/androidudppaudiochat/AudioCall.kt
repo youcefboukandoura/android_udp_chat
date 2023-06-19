@@ -31,23 +31,23 @@ class AudioCall(
         muteSpeakers()
     }
 
-    fun muteMic() {
+    private fun muteMic() {
         mic = false
     }
 
-    fun muteSpeakers() {
+    private fun muteSpeakers() {
         speakers = false
     }
 
-    fun startMic() {
+    private fun startMic() {
         // Creates the thread for capturing and transmitting audio
         mic = true
         val thread = Thread(
             Runnable {
                 // Create an instance of the AudioRecord class
                 Log.i(LOG_TAG, "Send thread started. Thread id: " + Thread.currentThread().id)
-                var bytes_read = 0
-                var bytes_sent = 0
+                var bytesRead = 0
+                var bytesSent = 0
                 val buf = ByteArray(BUF_SIZE)
                 try {
                     // Create a socket and start recording
@@ -56,11 +56,11 @@ class AudioCall(
                     audioRecorder.startRecording()
                     while (mic) {
                         // Capture audio from the mic and transmit it
-                        bytes_read = audioRecorder.read(buf, 0, BUF_SIZE)
-                        val packet = DatagramPacket(buf, bytes_read, address, port)
+                        bytesRead = audioRecorder.read(buf, 0, BUF_SIZE)
+                        val packet = DatagramPacket(buf, bytesRead, address, port)
                         socket.send(packet)
-                        bytes_sent += bytes_read
-                        Log.i(LOG_TAG, "Total bytes sent: $bytes_sent")
+                        bytesSent += bytesRead
+                        Log.i(LOG_TAG, "Total bytes sent $address: $bytesSent")
                         Thread.sleep(SAMPLE_INTERVAL.toLong(), 0)
                     }
                     // Stop recording and release resources
@@ -88,7 +88,7 @@ class AudioCall(
         thread.start()
     }
 
-    fun startSpeakers() {
+    private fun startSpeakers() {
         // Creates the thread for receiving and playing back audio
         if (!speakers) {
             speakers = true
@@ -100,13 +100,14 @@ class AudioCall(
                         "Receive thread started. Thread id: " + Thread.currentThread().id,
                     )
                     val track = AudioTrack(
-                        AudioManager.STREAM_MUSIC,
-                        SAMPLE_RATE,
-                        AudioFormat.CHANNEL_OUT_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                        BUF_SIZE,
-                        AudioTrack.MODE_STREAM,
+                        /* streamType = */ AudioManager.STREAM_VOICE_CALL,
+                        /* sampleRateInHz = */ SAMPLE_RATE,
+                        /* channelConfig = */ AudioFormat.CHANNEL_OUT_MONO,
+                        /* audioFormat = */ AudioFormat.ENCODING_PCM_16BIT,
+                        /* bufferSizeInBytes = */ BUF_SIZE,
+                        /* mode = */ AudioTrack.MODE_STREAM,
                     )
+
                     track.play()
                     try {
                         // Define a socket to receive the audio

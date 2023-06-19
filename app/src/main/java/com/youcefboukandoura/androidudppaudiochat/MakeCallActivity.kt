@@ -168,7 +168,7 @@ class MakeCallActivity : Activity() {
     }
 }
 
- fun Context.getAudioRecorder(): AudioRecord? = when {
+fun Context.getAudioRecorder(): AudioRecord? = when {
     ActivityCompat.checkSelfPermission(
         this,
         Manifest.permission.RECORD_AUDIO,

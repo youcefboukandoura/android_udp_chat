@@ -9,12 +9,11 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 
 class ContactManager(name: String, private val broadcastIP: InetAddress) {
-    private var BROADCAST = true
-    private var LISTEN = true
-    val contacts: HashMap<String, InetAddress>
+    private var broadcast = true
+    private var listen = true
+    val contacts: HashMap<String, InetAddress> = HashMap()
 
     init {
-        contacts = HashMap()
         listen()
         broadcastName(name, broadcastIP)
     }
@@ -69,7 +68,7 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
         byeThread.start()
     }
 
-    fun broadcastName(name: String, broadcastIP: InetAddress?) {
+    private fun broadcastName(name: String, broadcastIP: InetAddress?) {
         // Broadcasts the name of the device at a regular interval
         Log.i(LOG_TAG, "Broadcasting started!")
         val broadcastThread = Thread(
@@ -80,7 +79,7 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
                     val socket = DatagramSocket()
                     socket.broadcast = true
                     val packet = DatagramPacket(message, message.size, broadcastIP, BROADCAST_PORT)
-                    while (BROADCAST) {
+                    while (broadcast) {
                         socket.send(packet)
                         Log.i(LOG_TAG, "Broadcast packet sent: " + packet.address.toString())
                         Thread.sleep(BROADCAST_INTERVAL.toLong())
@@ -90,7 +89,7 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
                     socket.close()
                     return@Runnable
                 } catch (e: SocketException) {
-                    Log.e(LOG_TAG, "SocketExceltion in broadcast: $e")
+                    Log.e(LOG_TAG, "SocketException in broadcast: $e")
                     Log.i(LOG_TAG, "Broadcaster ending!")
                     return@Runnable
                 } catch (e: IOException) {
@@ -109,23 +108,22 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
 
     fun stopBroadcasting() {
         // Ends the broadcasting thread
-        BROADCAST = false
+        broadcast = false
     }
 
-    fun listen() {
+    private fun listen() {
         // Create the listener thread
         Log.i(LOG_TAG, "Listening started!")
         val listenThread = Thread(object : Runnable {
             override fun run() {
-                val socket: DatagramSocket
-                socket = try {
+                val socket: DatagramSocket = try {
                     DatagramSocket(BROADCAST_PORT)
                 } catch (e: SocketException) {
-                    Log.e(LOG_TAG, "SocketExcepion in listener: $e")
+                    Log.e(LOG_TAG, "SocketException in listener: $e")
                     return
                 }
                 val buffer = ByteArray(BROADCAST_BUF_SIZE)
-                while (LISTEN) {
+                while (listen) {
                     listen(socket, buffer)
                 }
                 Log.i(LOG_TAG, "Listener ending!")
@@ -143,22 +141,27 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
                     socket.receive(packet)
                     val data = String(buffer!!, 0, packet.length)
                     Log.i(LOG_TAG, "Packet received: $data")
-                    val action = data.substring(0, 4)
-                    if (action == "ADD:") {
-                        // Add notification received. Attempt to add contact
-                        Log.i(LOG_TAG, "Listener received ADD request")
-                        addContact(data.substring(4, data.length), packet.address)
-                    } else if (action == "BYE:") {
-                        // Bye notification received. Attempt to remove contact
-                        Log.i(LOG_TAG, "Listener received BYE request")
-                        removeContact(data.substring(4, data.length))
-                    } else {
-                        // Invalid notification received
-                        Log.w(LOG_TAG, "Listener received invalid request: $action")
+                    when (val action = data.substring(0, 4)) {
+                        "ADD:" -> {
+                            // Add notification received. Attempt to add contact
+                            Log.i(LOG_TAG, "Listener received ADD request")
+                            addContact(data.substring(4, data.length), packet.address)
+                        }
+
+                        "BYE:" -> {
+                            // Bye notification received. Attempt to remove contact
+                            Log.i(LOG_TAG, "Listener received BYE request")
+                            removeContact(data.substring(4, data.length))
+                        }
+
+                        else -> {
+                            // Invalid notification received
+                            Log.w(LOG_TAG, "Listener received invalid request: $action")
+                        }
                     }
                 } catch (e: SocketTimeoutException) {
                     Log.i(LOG_TAG, "No packet received!")
-                    if (LISTEN) {
+                    if (listen) {
                         listen(socket, buffer)
                     }
                     return
@@ -178,7 +181,7 @@ class ContactManager(name: String, private val broadcastIP: InetAddress) {
 
     fun stopListening() {
         // Stops the listener thread
-        LISTEN = false
+        listen = false
     }
 
     companion object {

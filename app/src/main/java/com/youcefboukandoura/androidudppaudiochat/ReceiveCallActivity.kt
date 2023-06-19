@@ -1,5 +1,6 @@
 package com.youcefboukandoura.androidudppaudiochat
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Bundle
 import android.util.Log
@@ -17,49 +18,33 @@ import java.net.UnknownHostException
 class ReceiveCallActivity : Activity() {
     private var contactIp: String? = null
     private var contactName: String? = null
-    private var LISTEN = true
-    private var IN_CALL = false
+    private var listen = true
+    private var inCall = false
     private var call: AudioCall? = null
+
+    @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_receive_call)
         val intent = intent
         contactName = intent.getStringExtra(MainActivity.EXTRA_CONTACT)
         contactIp = intent.getStringExtra(MainActivity.EXTRA_IP)
-        val textView = findViewById<View>(R.id.textViewIncomingCall) as TextView
+        val acceptButton = findViewById<Button>(R.id.buttonAccept)
+        val endButton = findViewById<Button>(R.id.buttonEndCall1)
+        val rejectButton = findViewById<Button>(R.id.buttonReject)
+        val textView = findViewById<TextView>(R.id.textViewIncomingCall)
         textView.text = "Incoming call: $contactName"
-        val endButton = findViewById<View>(R.id.buttonEndCall1) as Button
+
         endButton.visibility = View.INVISIBLE
         startListener()
 
-        // ACCEPT BUTTON
-        val acceptButton = findViewById<View>(R.id.buttonAccept) as Button
         acceptButton.setOnClickListener {
-            try {
-                // Accepting call. Send a notification and start the call
-                sendMessage("ACC:")
-                val address = InetAddress.getByName(contactIp)
-                Log.i(LOG_TAG, "Calling $address")
-                IN_CALL = true
-                val audioRecorder =
-                    applicationContext.getAudioRecorder() ?: return@setOnClickListener
-                call = AudioCall(address, audioRecorder)
-                call!!.startCall()
-                // Hide the buttons as they're not longer required
-                val accept = findViewById<View>(R.id.buttonAccept) as Button
-                accept.isEnabled = false
-                val reject = findViewById<View>(R.id.buttonReject) as Button
-                reject.isEnabled = false
-                endButton.visibility = View.VISIBLE
-            } catch (e: UnknownHostException) {
-                Log.e(LOG_TAG, "UnknownHostException in acceptButton: $e")
-            } catch (e: Exception) {
-                Log.e(LOG_TAG, "Exception in acceptButton: $e")
-            }
+            onClickAcceptButton(
+                acceptButton,
+                rejectButton,
+                endButton,
+            )
         }
-
-        // REJECT BUTTON
-        val rejectButton = findViewById<View>(R.id.buttonReject) as Button
         rejectButton.setOnClickListener { // Send a reject notification and end the call
             sendMessage("REJ:")
             endCall()
@@ -69,11 +54,38 @@ class ReceiveCallActivity : Activity() {
         endButton.setOnClickListener { endCall() }
     }
 
+    private fun onClickAcceptButton(
+        acceptButton: Button,
+        rejectButton: Button,
+        endButton: Button,
+    ) {
+        try {
+            // Accepting call. Send a notification and start the call
+            sendMessage("ACC:")
+            val address = InetAddress.getByName(contactIp)
+            Log.i(LOG_TAG, "Calling $address")
+            inCall = true
+            val audioRecorder =
+                applicationContext.getAudioRecorder() ?: return
+            call = AudioCall(address, audioRecorder)
+            call?.startCall()
+            // Hide the buttons as they're not longer required
+
+            acceptButton.isEnabled = false
+            rejectButton.isEnabled = false
+            endButton.visibility = View.VISIBLE
+        } catch (e: UnknownHostException) {
+            Log.e(LOG_TAG, "UnknownHostException in acceptButton: $e")
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Exception in acceptButton: $e")
+        }
+    }
+
     private fun endCall() {
         // End the call and send a notification
         stopListener()
-        if (IN_CALL) {
-            call!!.endCall()
+        if (inCall) {
+            call?.endCall()
         }
         sendMessage("END:")
         finish()
@@ -81,7 +93,7 @@ class ReceiveCallActivity : Activity() {
 
     private fun startListener() {
         // Creates the listener thread
-        LISTEN = true
+        listen = true
         val listenThread = Thread(
             Runnable {
                 try {
@@ -90,7 +102,7 @@ class ReceiveCallActivity : Activity() {
                     socket.soTimeout = 1500
                     val buffer = ByteArray(BUF_SIZE)
                     val packet = DatagramPacket(buffer, BUF_SIZE)
-                    while (LISTEN) {
+                    while (listen) {
                         try {
                             Log.i(LOG_TAG, "Listening for packets")
                             socket.receive(packet)
@@ -129,7 +141,7 @@ class ReceiveCallActivity : Activity() {
 
     private fun stopListener() {
         // Ends the listener thread
-        LISTEN = false
+        listen = false
     }
 
     private fun sendMessage(message: String) {
