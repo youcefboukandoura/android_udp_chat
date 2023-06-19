@@ -1,19 +1,12 @@
 package com.youcefboukandoura.androidudppaudiochat
 
-import android.Manifest
 import android.app.Activity
-import android.content.Context
-import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
-import androidx.core.app.ActivityCompat
 import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -26,7 +19,7 @@ class MakeCallActivity : Activity() {
     private var displayName: String? = null
     private var contactName: String? = null
     private var contactIp: String? = null
-    private var LISTEN = true
+    private var listen = true
     private var IN_CALL = false
     private var call: AudioCall? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,8 +57,7 @@ class MakeCallActivity : Activity() {
 
     private fun startListener() {
         // Create listener thread
-        LISTEN = true
-
+        listen = true
         val listenThread = Thread(
             Runnable {
                 try {
@@ -74,7 +66,7 @@ class MakeCallActivity : Activity() {
                     socket.soTimeout = 15000
                     val buffer = ByteArray(BUF_SIZE)
                     val packet = DatagramPacket(buffer, BUF_SIZE)
-                    while (LISTEN) {
+                    while (listen) {
                         try {
                             Log.i(LOG_TAG, "Listening for packets")
                             socket.receive(packet)
@@ -83,27 +75,28 @@ class MakeCallActivity : Activity() {
                                 LOG_TAG,
                                 "Packet received from " + packet.address + " with contents: " + data,
                             )
-                            val action = data.substring(0, 4)
-                            if (action == "ACC:") {
-                                // Accept notification received. Start call
+                            when (data.substring(0, 4)) {
+                                "ACC:" -> {
+                                    startCall(packet)
+                                }
 
-                                val audioRecorder =
-                                    baseContext.getAudioRecorder() ?: return@Runnable
-                                call = AudioCall(packet.address, audioRecorder)
-                                call!!.startCall()
-                                IN_CALL = true
-                            } else if (action == "REJ:") {
-                                // Reject notification received. End call
-                                endCall()
-                            } else if (action == "END:") {
-                                // End call notification received. End call
-                                endCall()
-                            } else {
-                                // Invalid notification received
-                                Log.w(
-                                    LOG_TAG,
-                                    packet.address.toString() + " sent invalid message: " + data,
-                                )
+                                "REJ:" -> {
+                                    // Reject notification received. End call
+                                    endCall()
+                                }
+
+                                "END:" -> {
+                                    // End call notification received. End call
+                                    endCall()
+                                }
+
+                                else -> {
+                                    // Invalid notification received
+                                    Log.w(
+                                        LOG_TAG,
+                                        packet.address.toString() + " sent invalid message: " + data,
+                                    )
+                                }
                             }
                         } catch (e: SocketTimeoutException) {
                             if (!IN_CALL) {
@@ -111,7 +104,7 @@ class MakeCallActivity : Activity() {
                                 endCall()
                                 return@Runnable
                             }
-                        } catch (e: IOException) {
+                        } catch (_: IOException) {
                         }
                     }
                     Log.i(LOG_TAG, "Listener ending")
@@ -127,9 +120,17 @@ class MakeCallActivity : Activity() {
         listenThread.start()
     }
 
+    private fun startCall(packet: DatagramPacket) {
+        // Accept notification received. Start call
+        val audioRecorder = baseContext.getAudioRecorder() ?: return
+        call = AudioCall(packet.address, audioRecorder)
+        call!!.startCall()
+        IN_CALL = true
+    }
+
     private fun stopListener() {
         // Ends the listener thread
-        LISTEN = false
+        listen = false
     }
 
     private fun sendMessage(message: String, port: Int) {
@@ -165,38 +166,5 @@ class MakeCallActivity : Activity() {
         private const val LOG_TAG = "MakeCall"
         private const val BROADCAST_PORT = 50002
         private const val BUF_SIZE = 1024
-    }
-}
-
-fun Context.getAudioRecorder(): AudioRecord? = when {
-    ActivityCompat.checkSelfPermission(
-        this,
-        Manifest.permission.RECORD_AUDIO,
-    ) != PackageManager.PERMISSION_GRANTED
-    -> {
-        // TODO: Consider calling
-        //    ActivityCompat#requestPermissions
-        // here to request the missing permissions, and then overriding
-        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-        //                                          int[] grantResults)
-        // to handle the case where the user grants the permission. See the documentation
-        // for ActivityCompat#requestPermissions for more details.
-        null
-    }
-
-    else -> {
-        val sampleRateInHz = 8000
-        AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            sampleRateInHz,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            AudioRecord.getMinBufferSize(
-                sampleRateInHz,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, /* !!! Hit visitElement for element type: class org.jetbrains.kotlin.nj2k.tree.JKErrorExpression !!! */
-            ) * 10,
-            /* !!! Hit visitElement for element type: class org.jetbrains.kotlin.nj2k.tree.JKErrorExpression !!! */
-        )
     }
 }

@@ -65,8 +65,7 @@ class ReceiveCallActivity : Activity() {
             val address = InetAddress.getByName(contactIp)
             Log.i(LOG_TAG, "Calling $address")
             inCall = true
-            val audioRecorder =
-                applicationContext.getAudioRecorder() ?: return
+            val audioRecorder = applicationContext.getAudioRecorder() ?: return
             call = AudioCall(address, audioRecorder)
             call?.startCall()
             // Hide the buttons as they're not longer required
