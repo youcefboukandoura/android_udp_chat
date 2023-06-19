@@ -17,7 +17,7 @@ class AudioCall(
     private val address: InetAddress,
     private val audioRecorder: AudioRecord,
 ) {
-    private val port = 50000 // Port the packets are addressed to
+
     private var mic = false // Enable mic?
     private var speakers = false // Enable speakers?
     fun startCall() {
@@ -57,7 +57,7 @@ class AudioCall(
                     while (mic) {
                         // Capture audio from the mic and transmit it
                         bytesRead = audioRecorder.read(buf, 0, BUF_SIZE)
-                        val packet = DatagramPacket(buf, bytesRead, address, port)
+                        val packet = DatagramPacket(buf, bytesRead, address, ADDRESS_PORT)
                         socket.send(packet)
                         bytesSent += bytesRead
                         Log.i(LOG_TAG, "Total bytes sent $address: $bytesSent")
@@ -111,7 +111,7 @@ class AudioCall(
                     track.play()
                     try {
                         // Define a socket to receive the audio
-                        val socket = DatagramSocket(port)
+                        val socket = DatagramSocket(ADDRESS_PORT)
                         val buf = ByteArray(BUF_SIZE)
                         while (speakers) {
                             // Play back the audio received from packets
@@ -147,5 +147,6 @@ class AudioCall(
         private const val SAMPLE_INTERVAL = 20 // Milliseconds
         private const val SAMPLE_SIZE = 2 // Bytes
         private const val BUF_SIZE = SAMPLE_INTERVAL * SAMPLE_INTERVAL * SAMPLE_SIZE * 2 // Bytes
+        val ADDRESS_PORT = 50000 // Port the packets are addressed to
     }
 }
