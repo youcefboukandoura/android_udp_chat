@@ -1,218 +1,169 @@
-package com.youcefboukandoura.androidudppaudiochat;
+package com.youcefboukandoura.androidudppaudiochat
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import android.app.Activity
+import android.os.Bundle
+import android.util.Log
+import android.view.Menu
+import android.view.View
+import android.widget.Button
+import android.widget.TextView
+import java.io.IOException
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.SocketException
+import java.net.UnknownHostException
 
-import android.app.Activity;
-import android.content.Intent;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.Menu;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
-import android.widget.TextView;
+class ReceiveCallActivity : Activity() {
+    private var contactIp: String? = null
+    private var contactName: String? = null
+    private var LISTEN = true
+    private var IN_CALL = false
+    private var call: AudioCall? = null
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_receive_call)
+        val intent = intent
+        contactName = intent.getStringExtra(MainActivity.EXTRA_CONTACT)
+        contactIp = intent.getStringExtra(MainActivity.EXTRA_IP)
+        val textView = findViewById<View>(R.id.textViewIncomingCall) as TextView
+        textView.text = "Incoming call: $contactName"
+        val endButton = findViewById<View>(R.id.buttonEndCall1) as Button
+        endButton.visibility = View.INVISIBLE
+        startListener()
 
-public class ReceiveCallActivity extends Activity {
+        // ACCEPT BUTTON
+        val acceptButton = findViewById<View>(R.id.buttonAccept) as Button
+        acceptButton.setOnClickListener {
+            try {
+                // Accepting call. Send a notification and start the call
+                sendMessage("ACC:")
+                val address = InetAddress.getByName(contactIp)
+                Log.i(LOG_TAG, "Calling $address")
+                IN_CALL = true
+                val audioRecorder =
+                    applicationContext.getAudioRecorder() ?: return@setOnClickListener
+                call = AudioCall(address, audioRecorder)
+                call!!.startCall()
+                // Hide the buttons as they're not longer required
+                val accept = findViewById<View>(R.id.buttonAccept) as Button
+                accept.isEnabled = false
+                val reject = findViewById<View>(R.id.buttonReject) as Button
+                reject.isEnabled = false
+                endButton.visibility = View.VISIBLE
+            } catch (e: UnknownHostException) {
+                Log.e(LOG_TAG, "UnknownHostException in acceptButton: $e")
+            } catch (e: Exception) {
+                Log.e(LOG_TAG, "Exception in acceptButton: $e")
+            }
+        }
 
-	private static final String LOG_TAG = "ReceiveCall";
-	private static final int BROADCAST_PORT = 50002;
-	private static final int BUF_SIZE = 1024;
-	private String contactIp;
-	private String contactName;
-	private boolean LISTEN = true;
-	private boolean IN_CALL = false;
-	private AudioCall call;
-	
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_receive_call);
-		
-		Intent intent = getIntent();
-		contactName = intent.getStringExtra(MainActivity.EXTRA_CONTACT);
-		contactIp = intent.getStringExtra(MainActivity.EXTRA_IP);
-		
-		TextView textView = (TextView) findViewById(R.id.textViewIncomingCall);
-		textView.setText("Incoming call: " + contactName);
-		
-		final Button endButton = (Button) findViewById(R.id.buttonEndCall1);
-		endButton.setVisibility(View.INVISIBLE);
-		
-		startListener();
-		
-		// ACCEPT BUTTON
-		Button acceptButton = (Button) findViewById(R.id.buttonAccept);
-		acceptButton.setOnClickListener(new OnClickListener() {
-			
-			@Override
-			public void onClick(View v) {
-				
-				try {
-					// Accepting call. Send a notification and start the call
-					sendMessage("ACC:");
-					InetAddress address = InetAddress.getByName(contactIp);
-					Log.i(LOG_TAG, "Calling " + address.toString());
-					IN_CALL = true;
-					call = new AudioCall(address);
-					call.startCall();
-					// Hide the buttons as they're not longer required
-					Button accept = (Button) findViewById(R.id.buttonAccept);
-					accept.setEnabled(false);
-					
-					Button reject = (Button) findViewById(R.id.buttonReject);
-					reject.setEnabled(false);
-					
-					endButton.setVisibility(View.VISIBLE);
-				}
-				catch(UnknownHostException e) {
-					
-					Log.e(LOG_TAG, "UnknownHostException in acceptButton: " + e);
-				}
-				catch(Exception e) {
-					
-					Log.e(LOG_TAG, "Exception in acceptButton: " + e);
-				}
-			}
-		});
-		
-		// REJECT BUTTON
-		Button rejectButton = (Button) findViewById(R.id.buttonReject);
-		rejectButton.setOnClickListener(new OnClickListener() {
-			
-			@Override
-			public void onClick(View v) {
-				// Send a reject notification and end the call
-				sendMessage("REJ:");
-				endCall();
-			}
-		});
-		
-		// END BUTTON
-		endButton.setOnClickListener(new OnClickListener() {
-			
-			@Override
-			public void onClick(View v) {
-				
-				endCall();
-			}
-		});
-	}
-	
-	private void endCall() {
-		// End the call and send a notification
-		stopListener();
-		if(IN_CALL) {
-			
-			call.endCall();
-		}
-		sendMessage("END:");
-		finish();
-	}
-	
-	private void startListener() {
-		// Creates the listener thread
-		LISTEN = true;
-		Thread listenThread = new Thread(new Runnable() {
-			
-			@Override
-			public void run() {
-				
-				try {
-					
-					Log.i(LOG_TAG, "Listener started!");
-					DatagramSocket socket = new DatagramSocket(BROADCAST_PORT);
-					socket.setSoTimeout(1500);
-					byte[] buffer = new byte[BUF_SIZE];
-					DatagramPacket packet = new DatagramPacket(buffer, BUF_SIZE);
-					while(LISTEN) {
-						
-						try {
-							
-							Log.i(LOG_TAG, "Listening for packets");
-							socket.receive(packet);
-							String data = new String(buffer, 0, packet.getLength());
-							Log.i(LOG_TAG, "Packet received from "+ packet.getAddress() +" with contents: " + data);
-							String action = data.substring(0, 4);
-							if(action.equals("END:")) {
-								// End call notification received. End call
-								endCall();
-							}
-							else {
-								// Invalid notification received.
-								Log.w(LOG_TAG, packet.getAddress() + " sent invalid message: " + data);
-							}
-						}
-						catch(IOException e) {
-							
-							Log.e(LOG_TAG, "IOException in Listener " + e);
-						}
-					}
-					Log.i(LOG_TAG, "Listener ending");
-					socket.disconnect();
-					socket.close();
-					return;
-				}
-				catch(SocketException e) {
-					
-					Log.e(LOG_TAG, "SocketException in Listener " + e);
-					endCall();
-				}
-			}
-		});
-		listenThread.start();
-	}
-	
-	private void stopListener() {
-		// Ends the listener thread
-		LISTEN = false;
-	}
-	
-	private void sendMessage(final String message) {
-		// Creates a thread for sending notifications
-		Thread replyThread = new Thread(new Runnable() {
-			
-			@Override
-			public void run() {
-				
-				try {
-					
-					InetAddress address = InetAddress.getByName(contactIp);
-					byte[] data = message.getBytes();
-					DatagramSocket socket = new DatagramSocket();
-					DatagramPacket packet = new DatagramPacket(data, data.length, address, BROADCAST_PORT);
-					socket.send(packet);
-					Log.i(LOG_TAG, "Sent message( " + message + " ) to " + contactIp);
-					socket.disconnect();
-					socket.close();
-				}
-				catch(UnknownHostException e) {
-					
-					Log.e(LOG_TAG, "Failure. UnknownHostException in sendMessage: " + contactIp);
-				}
-				catch(SocketException e) {
-					
-					Log.e(LOG_TAG, "Failure. SocketException in sendMessage: " + e);
-				}
-				catch(IOException e) {
-					
-					Log.e(LOG_TAG, "Failure. IOException in sendMessage: " + e);
-				}
-			}
-		});
-		replyThread.start();
-	}
+        // REJECT BUTTON
+        val rejectButton = findViewById<View>(R.id.buttonReject) as Button
+        rejectButton.setOnClickListener { // Send a reject notification and end the call
+            sendMessage("REJ:")
+            endCall()
+        }
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.receive_call, menu);
-		return true;
-	}
+        // END BUTTON
+        endButton.setOnClickListener { endCall() }
+    }
 
+    private fun endCall() {
+        // End the call and send a notification
+        stopListener()
+        if (IN_CALL) {
+            call!!.endCall()
+        }
+        sendMessage("END:")
+        finish()
+    }
+
+    private fun startListener() {
+        // Creates the listener thread
+        LISTEN = true
+        val listenThread = Thread(
+            Runnable {
+                try {
+                    Log.i(LOG_TAG, "Listener started!")
+                    val socket = DatagramSocket(BROADCAST_PORT)
+                    socket.soTimeout = 1500
+                    val buffer = ByteArray(BUF_SIZE)
+                    val packet = DatagramPacket(buffer, BUF_SIZE)
+                    while (LISTEN) {
+                        try {
+                            Log.i(LOG_TAG, "Listening for packets")
+                            socket.receive(packet)
+                            val data = String(buffer, 0, packet.length)
+                            Log.i(
+                                LOG_TAG,
+                                "Packet received from " + packet.address + " with contents: " + data,
+                            )
+                            val action = data.substring(0, 4)
+                            if (action == "END:") {
+                                // End call notification received. End call
+                                endCall()
+                            } else {
+                                // Invalid notification received.
+                                Log.w(
+                                    LOG_TAG,
+                                    packet.address.toString() + " sent invalid message: " + data,
+                                )
+                            }
+                        } catch (e: IOException) {
+                            Log.e(LOG_TAG, "IOException in Listener $e")
+                        }
+                    }
+                    Log.i(LOG_TAG, "Listener ending")
+                    socket.disconnect()
+                    socket.close()
+                    return@Runnable
+                } catch (e: SocketException) {
+                    Log.e(LOG_TAG, "SocketException in Listener $e")
+                    endCall()
+                }
+            },
+        )
+        listenThread.start()
+    }
+
+    private fun stopListener() {
+        // Ends the listener thread
+        LISTEN = false
+    }
+
+    private fun sendMessage(message: String) {
+        // Creates a thread for sending notifications
+        val replyThread = Thread {
+            try {
+                val address = InetAddress.getByName(contactIp)
+                val data = message.toByteArray()
+                val socket = DatagramSocket()
+                val packet = DatagramPacket(data, data.size, address, BROADCAST_PORT)
+                socket.send(packet)
+                Log.i(LOG_TAG, "Sent message( $message ) to $contactIp")
+                socket.disconnect()
+                socket.close()
+            } catch (e: UnknownHostException) {
+                Log.e(LOG_TAG, "Failure. UnknownHostException in sendMessage: $contactIp")
+            } catch (e: SocketException) {
+                Log.e(LOG_TAG, "Failure. SocketException in sendMessage: $e")
+            } catch (e: IOException) {
+                Log.e(LOG_TAG, "Failure. IOException in sendMessage: $e")
+            }
+        }
+        replyThread.start()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        menuInflater.inflate(R.menu.receive_call, menu)
+        return true
+    }
+
+    companion object {
+        private const val LOG_TAG = "ReceiveCall"
+        private const val BROADCAST_PORT = 50002
+        private const val BUF_SIZE = 1024
+    }
 }

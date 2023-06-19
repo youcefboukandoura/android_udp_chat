@@ -50,7 +50,7 @@ class MainActivity : Activity() {
                 callButton.visibility = View.VISIBLE
                 val scrollView = findViewById<ScrollView>(R.id.scrollView)
                 scrollView.visibility = View.VISIBLE
-                contactManager = ContactManager(displayName, broadcastIp)
+                contactManager = ContactManager(displayNameText.text.toString(), broadcastIp!!)
                 startCallListener()
             }
         })
@@ -196,7 +196,7 @@ class MainActivity : Activity() {
     public override fun onPause() {
         super.onPause()
         if (STARTED) {
-            contactManager!!.bye(displayName)
+            contactManager!!.bye(displayName!!)
             contactManager!!.stopBroadcasting()
             contactManager!!.stopListening()
             // STARTED = false;
@@ -219,7 +219,7 @@ class MainActivity : Activity() {
         Log.i(LOG_TAG, "App restarted!")
         IN_CALL = false
         STARTED = true
-        contactManager = ContactManager(displayName, broadcastIp)
+        contactManager = ContactManager(displayName!!, broadcastIp!!)
         startCallListener()
     }
 
@@ -227,8 +227,8 @@ class MainActivity : Activity() {
         const val LOG_TAG = "UDPchat"
         private const val LISTENER_PORT = 50003
         private const val BUF_SIZE = 1024
-        const val EXTRA_CONTACT = "hw.dt83.udpchat.CONTACT"
-        const val EXTRA_IP = "hw.dt83.udpchat.IP"
-        const val EXTRA_DISPLAYNAME = "hw.dt83.udpchat.DISPLAYNAME"
+        const val EXTRA_CONTACT = "CONTACT"
+        const val EXTRA_IP = "IP"
+        const val EXTRA_DISPLAYNAME = "DISPLAYNAME"
     }
 }
