@@ -13,7 +13,6 @@ import java.net.SocketException
 import java.net.UnknownHostException
 
 class AudioCall(
-    // Address to call
     private val address: InetAddress,
     private val audioRecorder: AudioRecord,
 ) {
@@ -147,6 +146,6 @@ class AudioCall(
         private const val SAMPLE_INTERVAL = 20 // Milliseconds
         private const val SAMPLE_SIZE = 2 // Bytes
         private const val BUF_SIZE = SAMPLE_INTERVAL * SAMPLE_INTERVAL * SAMPLE_SIZE * 2 // Bytes
-        val ADDRESS_PORT = 33242 // Port the packets are addressed to
+        const val ADDRESS_PORT = 33242 // Port the packets are addressed to
     }
 }
