@@ -59,7 +59,7 @@ class AudioCall(
                         val packet = DatagramPacket(buf, bytesRead, address, ADDRESS_PORT)
                         socket.send(packet)
                         bytesSent += bytesRead
-                        Log.i(LOG_TAG, "Total bytes sent $address: $bytesSent")
+//                        Log.i(LOG_TAG, "Total bytes sent $address: $bytesSent")
                         Thread.sleep(SAMPLE_INTERVAL.toLong(), 0)
                     }
                     // Stop recording and release resources
@@ -116,7 +116,7 @@ class AudioCall(
                             // Play back the audio received from packets
                             val packet = DatagramPacket(buf, BUF_SIZE)
                             socket.receive(packet)
-                            Log.i(LOG_TAG, "Packet received: " + packet.length)
+//                            Log.i(LOG_TAG, "Packet received: " + packet.length)
                             track.write(packet.data, 0, BUF_SIZE)
                         }
                         // Stop playing back and release resources

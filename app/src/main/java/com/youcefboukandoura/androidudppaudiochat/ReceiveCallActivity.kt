@@ -37,7 +37,11 @@ class ReceiveCallActivity : Activity() {
 
         endButton.visibility = View.INVISIBLE
         startListener()
-
+        onClickAcceptButton(
+            acceptButton,
+            rejectButton,
+            endButton,
+        )
         acceptButton.setOnClickListener {
             onClickAcceptButton(
                 acceptButton,

@@ -32,16 +32,23 @@ class MakeCallActivity : Activity() {
         contactIp = intent.getStringExtra(MainActivity.EXTRA_IP)
         val textView = findViewById<View>(R.id.textViewCalling) as TextView
         textView.text = "Calling: $contactName"
-        startListener()
         makeCall()
+        val buffer = ByteArray(BUF_SIZE)
+        val address = InetAddress.getByName(contactIp)
+        val packet = DatagramPacket(buffer, BUF_SIZE, address, AudioCall.ADDRESS_PORT)
+
+        startCall(packet)
         val endButton = findViewById<View>(R.id.buttonEndCall) as Button
         endButton.setOnClickListener { // Button to end the call has been pressed
             endCall()
         }
     }
 
+    /**
+     * Send a request to start a call
+     *
+     */
     private fun makeCall() {
-        // Send a request to start a call
         sendMessage("CAL:$displayName", 50003)
     }
 
@@ -49,7 +56,7 @@ class MakeCallActivity : Activity() {
         // Ends the chat sessions
         stopListener()
         if (IN_CALL) {
-            call!!.endCall()
+            call?.endCall()
         }
         sendMessage("END:", BROADCAST_PORT)
         finish()
@@ -124,7 +131,7 @@ class MakeCallActivity : Activity() {
         // Accept notification received. Start call
         val audioRecorder = baseContext.getAudioRecorder() ?: return
         call = AudioCall(packet.address, audioRecorder)
-        call!!.startCall()
+        call?.startCall()
         IN_CALL = true
     }
 
